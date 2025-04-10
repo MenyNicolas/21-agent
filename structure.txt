@@ -1,0 +1,25 @@
+blackjack_ai_project/
+├── app/
+│   ├── env/
+│   │   ├── __init__.py
+│   │   ├── environment.py       # logique du jeu
+│   │   └── utils.py             # outils simulation
+│   └── agent/
+│       ├── __init__.py
+│       ├── agent.py             # classe IA avec .predict()
+│       └── utils.py             # préparation données, etc.
+│
+├── scripts/
+│   ├── train.py                 # entraîne ton modèle
+│   └── evaluate.py             # évalue ton modèle
+│
+├── data/
+│   ├── raw/                     # jeux de données bruts
+│   └── processed/               # jeux transformés
+│
+├── models/
+│   └── agent_v1.pkl             # modèle sauvegardé
+│
+├── main.py                      # lancement d'une partie complète
+├── requirements.txt
+└── README.md
