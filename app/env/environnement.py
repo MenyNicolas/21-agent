@@ -9,6 +9,7 @@ import env.utils_env as utils_env
 from agent.agent_BJ import agent_BJ
 
 NB_SIMULATIONS = 999
+HIT_SOFT_17 = True
 
 def partie_BJ():
     historique_df = pd.DataFrame(columns=[
@@ -17,18 +18,15 @@ def partie_BJ():
         'actions',
         'total_joueur',
         'total_dealer',
-        'running_count',
         'true_count',
         'résultat',
-        'is_doubled',
-        'is_split',
-        'id_sabot',
-        'taille_sabot',
-        'paquet_restant',
         'bj_joueur',
         'bj_dealer',
         'mise_initiale',
-        'résultat_mise'
+        'résultat_mise',
+        'is_split',
+        'is_surrender',
+        'id_sabot'
     ])
 
     id_sabot = 0
@@ -67,6 +65,10 @@ def tour_BJ(sabot, running_count, historique_df):
     # Si le croupier a blackjack, on retourne une seule main
     if utils_env.blackjack(main_dealer):
         return [(main_joueur.copy(), [])], main_dealer, running_count, sabot, mise_initiale
+    
+    # Proposer surrender à l'agent
+    if agent_BJ(2, [], main_joueur, main_dealer, running_count, sabot):
+        return [(main_joueur.copy(), ["SU"])], main_dealer, running_count, sabot, mise_initiale
 
     # Jouer toutes les mains du joueur avec pile
     all_mains, running_count, sabot = gerer_toutes_les_mains(main_joueur.copy(), main_dealer, running_count, sabot)
@@ -79,11 +81,21 @@ def tour_BJ(sabot, running_count, historique_df):
 def jouer_main_dealer(main_dealer, running_count, sabot):
     while True:
         total = utils_env.valeur_main(main_dealer)
-        if total >= 17:
+        is_soft_ = utils_env.is_soft(main_dealer)  # à créer si tu ne l’as pas encore
+
+        if total > 17:
             break
+        elif total == 17:
+            if not HIT_SOFT_17:
+                break
+            elif not is_soft_:
+                break
+
+        # piocher
         card = sabot.pop()
         main_dealer.append(card)
         running_count = utils_env.update_running_count(card, running_count)
+
     return main_dealer, running_count, sabot
 
 def jouer_une_main(main, main_dealer, action_stack, running_count, sabot):

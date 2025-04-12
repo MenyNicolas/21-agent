@@ -24,15 +24,15 @@ def agent_BJ(id_action, action_stack, main_joueur, main_dealer, running_count, s
             return 'A'
         else:
             return 'N'
-        
+    '''
+
     # gestion du surrender
     if(id_action == 2):
         return utils_agent.surrender(main_joueur, main_dealer, true_count)
-    '''
     
     # gestion des splits
     if(id_action == 3):
-        return utils_agent.agent_split(main_joueur, main_dealer, False)
+        return utils_agent.agent_split(main_joueur, main_dealer)
     
     # gestion stand hit double
     if(id_action == 4):

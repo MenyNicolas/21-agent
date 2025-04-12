@@ -42,17 +42,18 @@ def is_soft(main):
     return adjusted_aces > 0
 
 def surrender(main_joueur, main_dealer, true_count):
-    carte_dealer = main_joueur[0]
-    is_hard = not is_soft(main_joueur)
-    if carte_dealer in [9, 10, 11]:
-        if is_hard and (np.sum(main_joueur) == 16):
-            return 1
-        elif is_hard and ((np.sum(main_joueur) == 15) and (carte_dealer == 10)):
-            return 1
-        else:
-            return 0
+    carte_dealer = valeur_carte(main_dealer[0])
+    total_joueur = valeur_main(main_joueur)
+
+    if 11 in main_joueur:
+        return False
+
+    if total_joueur == 16 and carte_dealer in [9, 10, 11]:
+        return True
+    elif total_joueur == 15 and carte_dealer == 10:
+        return True
     else:
-        return 0
+        return False
 
 def agent_split(main_joueur, main_dealer, is_DAS = True):
 
@@ -82,6 +83,15 @@ def agent_stand_hit_double(main_joueur, main_dealer):
 
     total_joueur = valeur_main(main_joueur)
     carte_dealer = valeur_carte(main_dealer[0])
+
+    if(not is_soft_ and total_joueur > 17):
+        return "S"
+    
+    if(not is_soft_ and total_joueur < 8):
+        return "H"
+
+    if(is_soft_ and total_joueur > 20):
+        return "S"
 
     action = model_handler.predict("stand_hit_double", [total_joueur, carte_dealer, is_soft_])
 

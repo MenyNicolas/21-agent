@@ -5,6 +5,17 @@ import pandas as pd
 # === CONFIGURATION SIMULATEUR ===
 NUM_DECKS = 6
 
+def is_soft(main):
+    total = sum(valeur_carte(c) for c in main)
+    ace_count = main.count(11)
+
+    adjusted_aces = ace_count
+    while total > 21 and adjusted_aces > 0:
+        total -= 10
+        adjusted_aces -= 1
+
+    return adjusted_aces > 0
+
 def creer_sabot(num_decks=NUM_DECKS):
     deck = [2, 3, 4, 5, 6, 7, 8, 9, 10, 'J', 'Q', 'K', 11] * 4 * num_decks
     random.shuffle(deck)
@@ -75,21 +86,38 @@ def valeur_main(main_joueur):
     return total
 
 
-def resultat(main_dealer, main_joueur, is_doubled, is_split):
+def resultat(main_dealer, main_joueur, is_doubled, is_split, is_surrender):
+
+    if is_surrender:
+        return -0.5
+
     mise = 2 if is_doubled else 1
 
-    if valeur_main(main_joueur) > 21:
-        return -mise
-    elif valeur_main(main_dealer) > 21:
-        return mise
-    elif blackjack(main_joueur):
-        if blackjack(main_dealer):
-            return 0
+    joueur_bj = blackjack(main_joueur)
+    dealer_bj = blackjack(main_dealer)
+
+    # ✅ Cas 1 : Blackjack joueur
+    if joueur_bj:
+        if dealer_bj:
+            return 0  # Égalité
         else:
-            return mise if is_split else 1.5 * mise
-    elif valeur_main(main_joueur) > valeur_main(main_dealer):
+            return mise if is_split else 1.5 * mise  # BJ après split = 1:1
+
+    # ✅ Cas 2 : Dealer a blackjack
+    if dealer_bj:
+        return -mise
+
+    # ✅ Cas 3 : Busts ou comparaison de valeurs
+    total_joueur = valeur_main(main_joueur)
+    total_dealer = valeur_main(main_dealer)
+
+    if total_joueur > 21:
+        return -mise
+    elif total_dealer > 21:
         return mise
-    elif valeur_main(main_joueur) == valeur_main(main_dealer):
+    elif total_joueur > total_dealer:
+        return mise
+    elif total_joueur == total_dealer:
         return 0
     else:
         return -mise
@@ -98,9 +126,10 @@ def resultat(main_dealer, main_joueur, is_doubled, is_split):
 def fin_de_tour(main_dealer, main_joueur, action_stack, running_count, sabot, historique_df, id_sabot, mise_initiale):
     is_doubled = action_stack[-1] == 'D' if action_stack else False
     is_split = action_stack[0] == 'SP' if action_stack else False
+    is_surrender = action_stack[0] == 'SU' if action_stack else False
 
     true_count = (running_count / (len(sabot) / 52)) if len(sabot) > 0 else 0
-    resultat_main = resultat(main_dealer, main_joueur, is_doubled, is_split)
+    resultat_main = resultat(main_dealer, main_joueur, is_doubled, is_split, is_surrender)
 
     total_joueur = valeur_main(main_joueur)
     total_dealer = valeur_main(main_dealer)
@@ -111,18 +140,15 @@ def fin_de_tour(main_dealer, main_joueur, action_stack, running_count, sabot, hi
         'actions': action_stack.copy(),
         'total_joueur': total_joueur,
         'total_dealer': total_dealer,
-        'running_count': running_count,
         'true_count': true_count,
         'résultat': resultat_main,
-        'is_doubled': is_doubled,
-        'is_split': is_split,
-        'id_sabot': id_sabot,
-        'taille_sabot': len(sabot),
-        'paquet_restant': (len(sabot) / 52),
         'bj_joueur': blackjack(main_joueur),
         'bj_dealer': blackjack(main_dealer),
         'mise_initiale': mise_initiale,
-        'résultat_mise': (resultat_main * mise_initiale)
+        'résultat_mise': resultat_main * mise_initiale,
+        'is_split': is_split,
+        'is_surrender': is_surrender,
+        'id_sabot': id_sabot
     })
 
     return pd.concat([historique_df, series_resultat.to_frame().T], ignore_index=True)
@@ -140,9 +166,5 @@ def df_stransform_n_save(df):
     # Création des nouvelles colonnes pour actions
     for i in range(1, 7):
         df[f'actions_{i}'] = df['actions'].apply(lambda x: x[i-1] if len(x) >= i else None)
-
-    df.drop(['running_count', 'true_count', 'taille_sabot', 'paquet_restant'], axis=1, inplace=True)
-
-    df['résultat_binaire'] = df['résultat'].apply(lambda x: -1 if x < 0 else (0 if x == 0 else 1))
-
-    df.to_excel('data/historique.xlsx', index=False)
+    
+    df.to_csv('historique_BJ.csv', index=False)
