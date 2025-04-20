@@ -8,26 +8,11 @@ import pandas as pd
 import env.utils_env as utils_env
 from agent.agent_BJ import agent_BJ
 
-NB_SIMULATIONS = 999
+NB_SIMULATIONS = int(sys.argv[1])
 HIT_SOFT_17 = True
 
 def partie_BJ():
-    historique_df = pd.DataFrame(columns=[
-        'main_joueur',
-        'main_dealer',
-        'actions',
-        'total_joueur',
-        'total_dealer',
-        'true_count',
-        'résultat',
-        'bj_joueur',
-        'bj_dealer',
-        'mise_initiale',
-        'résultat_mise',
-        'is_split',
-        'is_surrender',
-        'id_sabot'
-    ])
+    historique = []
 
     id_sabot = 0
 
@@ -35,43 +20,47 @@ def partie_BJ():
         running_count = 0
         sabot = utils_env.creer_sabot()
 
-        print("simu ", _)
+        if _ % 100 == 0:
+            print("simu ", _)
 
         while len(sabot) > (utils_env.NUM_DECKS * 52 * 0.25):
-            all_mains, main_dealer, running_count, sabot, mise_initiale = tour_BJ(sabot, running_count, historique_df)
+            all_mains, main_dealer, running_count, sabot, mise_initiale = tour_BJ(sabot, running_count )
 
             for main_joueur, action_stack in all_mains:
-                historique_df = utils_env.fin_de_tour(
-                    main_dealer,
-                    main_joueur,
-                    action_stack,
-                    running_count,
-                    sabot,
-                    historique_df,
-                    id_sabot,
-                    mise_initiale
+                historique.append(
+                    utils_env.fin_de_tour(
+                        main_dealer, main_joueur, action_stack,
+                        running_count, sabot,
+                        id_sabot, mise_initiale
+                    )
                 )
 
         id_sabot += 1
 
-    utils_env.df_stransform_n_save(historique_df)
+    utils_env.df_stransform_n_save(historique)
 
-def tour_BJ(sabot, running_count, historique_df):
+def tour_BJ(sabot, running_count):
 
     mise_initiale = agent_BJ(0, [], [], [], running_count, sabot)
 
     main_joueur, main_dealer, running_count = utils_env.distribution_initial(sabot, running_count)
 
+    action_stack = []
+
+    if main_dealer[0] == 11:
+        action_stack.append(agent_BJ(1, [], main_joueur, main_dealer, running_count, sabot))
+
     # Si le croupier a blackjack, on retourne une seule main
     if utils_env.blackjack(main_dealer):
-        return [(main_joueur.copy(), [])], main_dealer, running_count, sabot, mise_initiale
+        return [(main_joueur.copy(), action_stack.copy())], main_dealer, running_count, sabot, mise_initiale
     
     # Proposer surrender à l'agent
     if agent_BJ(2, [], main_joueur, main_dealer, running_count, sabot):
-        return [(main_joueur.copy(), ["SU"])], main_dealer, running_count, sabot, mise_initiale
+        action_stack.append("SU")
+        return [(main_joueur.copy(), action_stack.copy())], main_dealer, running_count, sabot, mise_initiale
 
     # Jouer toutes les mains du joueur avec pile
-    all_mains, running_count, sabot = gerer_toutes_les_mains(main_joueur.copy(), main_dealer, running_count, sabot)
+    all_mains, running_count, sabot = gerer_toutes_les_mains(main_joueur.copy(), main_dealer, running_count, sabot, action_stack.copy())
 
     # Jouer le dealer
     main_dealer, running_count, sabot = jouer_main_dealer(main_dealer, running_count, sabot)
@@ -121,11 +110,11 @@ def jouer_une_main(main, main_dealer, action_stack, running_count, sabot):
 
     return main, action_stack, running_count, sabot
 
-def gerer_toutes_les_mains(main_joueur, main_dealer, running_count, sabot):
+def gerer_toutes_les_mains(main_joueur, main_dealer, running_count, sabot, action_stack):
 
     main_queue = [{
         "main": main_joueur.copy(),
-        "action_stack": [],
+        "action_stack": action_stack.copy(),
         "security": False
     }]
 

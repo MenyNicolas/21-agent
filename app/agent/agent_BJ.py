@@ -15,16 +15,20 @@ def agent_BJ(id_action, action_stack, main_joueur, main_dealer, running_count, s
 
     # gestion de la mise initiale
     if(id_action == 0):
+        if true_count >= 5:
+            return 100
+        if true_count >= 3:
+            return 60
+        if true_count >= 1:
+            return 20
         return 10
 
-    '''
     # gestion de l'assurance
     if(id_action == 1):
         if true_count > 2:
             return 'A'
         else:
             return 'N'
-    '''
 
     # gestion du surrender
     if(id_action == 2):

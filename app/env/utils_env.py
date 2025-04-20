@@ -121,50 +121,62 @@ def resultat(main_dealer, main_joueur, is_doubled, is_split, is_surrender):
         return 0
     else:
         return -mise
+    
+def resultat_assurance(main_dealer, assurance_prise, mise_initiale):
+    if not assurance_prise:
+        return 0
+
+    if blackjack(main_dealer):
+        return mise_initiale  # Paie 2:1 (gain = +1x la mise initiale)
+    else:
+        return -0.5 * mise_initiale  # Assurance perdue
 
 
-def fin_de_tour(main_dealer, main_joueur, action_stack, running_count, sabot, historique_df, id_sabot, mise_initiale):
+
+def fin_de_tour(main_dealer, main_joueur, action_stack, running_count, sabot, id_sabot, mise_initiale):
     is_doubled = action_stack[-1] == 'D' if action_stack else False
     is_split = action_stack[0] == 'SP' if action_stack else False
     is_surrender = action_stack[0] == 'SU' if action_stack else False
+    is_assurance = action_stack[0] == 'A' if action_stack else False
 
     true_count = (running_count / (len(sabot) / 52)) if len(sabot) > 0 else 0
-    resultat_main = resultat(main_dealer, main_joueur, is_doubled, is_split, is_surrender)
+
+    résultat_main = resultat(main_dealer, main_joueur, is_doubled, is_split, is_surrender)
+    gain_main = résultat_main*mise_initiale
+    gain_assurance = resultat_assurance(main_dealer, is_assurance, mise_initiale)
 
     total_joueur = valeur_main(main_joueur)
     total_dealer = valeur_main(main_dealer)
 
-    series_resultat = pd.Series({
+    return {
         'main_joueur': main_joueur.copy(),
         'main_dealer': main_dealer.copy(),
         'actions': action_stack.copy(),
         'total_joueur': total_joueur,
         'total_dealer': total_dealer,
+        'running_count': running_count,
         'true_count': true_count,
-        'résultat': resultat_main,
+        'résultat_main': résultat_main,
         'bj_joueur': blackjack(main_joueur),
         'bj_dealer': blackjack(main_dealer),
         'mise_initiale': mise_initiale,
-        'résultat_mise': resultat_main * mise_initiale,
+        'gain_main': gain_main,
+        'gain_assurance': gain_assurance,
+        'gain_total': gain_main + gain_assurance,
         'is_split': is_split,
         'is_surrender': is_surrender,
-        'id_sabot': id_sabot
-    })
+        'id_sabot': id_sabot,
+    }
 
-    return pd.concat([historique_df, series_resultat.to_frame().T], ignore_index=True)
+def df_stransform_n_save(data):
+    df = pd.DataFrame(data)
 
-def df_stransform_n_save(df):
-
-    # Création des nouvelles colonnes pour main_joueur
     for i in range(1, 7):
         df[f'main_joueur_{i}'] = df['main_joueur'].apply(lambda x: x[i-1] if len(x) >= i else None)
-
-    # Création des nouvelles colonnes pour main_dealer
-    for i in range(1, 7):
         df[f'main_dealer_{i}'] = df['main_dealer'].apply(lambda x: x[i-1] if len(x) >= i else None)
-
-    # Création des nouvelles colonnes pour actions
-    for i in range(1, 7):
         df[f'actions_{i}'] = df['actions'].apply(lambda x: x[i-1] if len(x) >= i else None)
-    
+
+    df['running_count'] = df['running_count'].shift(1)
+    df['true_count'] = df['true_count'].shift(1)
+
     df.to_csv('historique_BJ.csv', index=False)
